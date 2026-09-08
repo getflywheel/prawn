@@ -1,0 +1,36 @@
+name: Smoke Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Generate a PDF and verify it's valid
+        run: |
+          bundle exec ruby -Ilib -e '
+            require "prawn"
+
+            Prawn::Document.generate("/tmp/smoke_test.pdf") do
+              text "Hello, World!"
+            end
+
+            content = File.binread("/tmp/smoke_test.pdf")
+            raise "PDF is empty" if content.empty?
+            raise "Missing PDF header" unless content.start_with?("%PDF-")
+            raise "Missing EOF marker" unless content.include?("%%EOF")
+
+            puts "Generated a #{content.bytesize}-byte PDF successfully"
+          '
